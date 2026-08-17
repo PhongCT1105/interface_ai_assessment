@@ -204,15 +204,18 @@ that hits an exceptional state.
 
 To be closed before implementation and recorded in [decisions.md](decisions.md).
 
-| Decision | Options | Leaning |
+| Decision | Options | Status |
 | --- | --- | --- |
-| Language / runtime | TypeScript, Python | — |
-| Surface driver (web impl) | Playwright, CDP, OS-level | Playwright, for its accessibility-tree access |
-| Perception | Accessibility tree, screenshot, hybrid | Hybrid: a11y tree for targeting, screenshot for judgment and evidence |
-| Artifact serialization | JSON, YAML, generated code | JSON with a schema; YAML only if review ergonomics win |
-| Proxy target app | Public demo site, locally built hostile app | Locally built — deterministic, no terms/rate-limit risk, and can inject the runtime errors the brief cares about |
-| Model | Claude (consult `claude-api` guidance before wiring) | — |
-| Process architecture | Single process + CLI, services | Single process; the brief rewards justified simplicity |
+| Language / runtime | TypeScript, Python | **Deferred** pending research pass (0005) |
+| Surface driver (web impl) | Playwright, CDP, OS-level | Deferred with the above; leaning Playwright for its accessibility-tree access |
+| Perception | Accessibility tree, screenshot, hybrid | Deferred; leaning hybrid — a11y tree for targeting, screenshot for judgment and evidence |
+| Artifact serialization | JSON, YAML, generated code | Deferred; leaning JSON with a schema, YAML only if review ergonomics win |
+| Proxy target app | Public demo site, locally built hostile app | **Decided:** locally built hostile app (0006) |
+| Model | Claude (consult `claude-api` guidance before wiring) | Deferred with the stack |
+| Process architecture | Single process + CLI, services | Leaning single process; the brief rewards justified simplicity |
+
+Scope, depth budget, and build order are in [scope.md](scope.md). The stack deferral is safe
+because everything above is defined in terms of contracts and seams rather than libraries.
 
 ## Principles
 

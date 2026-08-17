@@ -20,7 +20,9 @@ Design phase. Requirements captured, architecture proposed, no implementation ye
 | --- | --- |
 | Requirements of record | Complete — [docs/assignment-brief.md](docs/assignment-brief.md) |
 | Architecture | Proposed — [docs/architecture.md](docs/architecture.md) |
-| Stack / target app decisions | Open — see architecture "Open decisions" |
+| Scope, depth budget, build order | Defined — [docs/scope.md](docs/scope.md) |
+| Target application | Decided — locally built hostile back-office app |
+| Stack / computer-use technology | Deferred pending a research pass |
 | Agent loop (3.1) | Not started |
 | Capability artifact (3.2) | Not started |
 | Deterministic replay (3.3) | Not started |
@@ -60,6 +62,7 @@ REPORT.md               design write-up, seven required headings (required deliv
 evidence/               example artifact + discovery and replay run logs (required)
 docs/
   assignment-brief.md   requirements of record + traceability
+  scope.md              depth budget, cut list, build order
   architecture.md       proposed design
   decisions.md          decision log — every choice and its justification
 ```

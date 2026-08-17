@@ -86,21 +86,59 @@ structure cannot be forgotten late.
 
 ---
 
-## 0005 — Core technical decisions (open)
+## 0005 — Stack and computer-use technology deferred pending a research pass
 
 **Date:** 2026-08-17
-**Status:** Open
+**Status:** Open — deliberately deferred
 
-Language/runtime, computer-use technology, perception strategy, artifact serialization, and
-proxy target application are all explicitly our call (brief Section 4) and all remain open.
-Current leanings and their reasoning are in the "Open decisions" table in
+Language/runtime, computer-use technology, perception strategy, and artifact serialization are
+explicitly our call (brief Section 4) and remain open pending a dedicated research pass across
+the options. Current leanings and their reasoning are in the "Open decisions" table in
 [architecture.md](architecture.md); each becomes its own entry here once settled.
 
-The two that most constrain everything else, and so should be settled first:
+Deferring these is safe because [scope.md](scope.md) defines the submission in terms of
+contracts and seams — surface driver, artifact schema, policy chokepoint, session ownership —
+none of which depend on the library underneath. Committing to a stack before researching it
+would mean defending a choice made for convenience, and the brief requires defending every
+choice in detail.
 
-- **Perception strategy**, because the brief says to bias toward an approach that still works
-  with no clean DOM, and that choice determines what a `Target` in the artifact schema can
-  even refer to.
-- **Proxy target application**, because the brief's interesting failures are runtime
-  conditions — validation errors, not-found results, permission denials, session timeouts —
-  and a target that cannot produce them on demand makes requirement 3.3 undemonstrable.
+The perception strategy is the one to settle most carefully, because the brief says to bias
+toward an approach that still works with no clean DOM, and that choice determines what a
+`Target` in the artifact schema can even refer to.
+
+---
+
+## 0006 — Proxy target: a locally built, deliberately hostile back-office app
+
+**Date:** 2026-08-17
+**Status:** Accepted
+
+A mock member-servicing console, built locally: legacy-shaped markup (nested tables,
+frames/iframes, no test IDs, ambiguous labels), seeded fake data, a search → detail → action
+flow with a confirmation screen, and a fault-injection switch for record-not-found, validation
+error, permission denial, unexpected interstitial, session timeout, slow load, and app error.
+
+Derived from scope rather than preference — the reasoning is in [scope.md](scope.md) under
+"What the target application must therefore be". In short, the scope imposes seven
+requirements on the target and a public demo site fails four of them: it cannot emit a
+permission denial or session timeout on command, it can change between the discovery run and
+the replay run, it carries terms and rate-limit exposure, and it is not offline. Requirement
+3.3 is the third-heaviest evaluation criterion and its `/evidence/` error case is explicitly
+requested, so a target that cannot produce runtime errors on demand makes the highest-value
+part of the submission undemonstrable.
+
+The target is therefore not a distraction from the project — it *is* the fault-injection
+harness that requirements 3.3 and 6.3 need.
+
+Rejected: a public demo/sandbox site (fails the above, though it would have been cheaper and
+unambiguously "real"); a desktop app (leans furthest into their environment, but coordinate
+targeting undermines the deterministic-replay story that carries more evaluation weight).
+
+Known weakness, to be stated in the write-up rather than buried: authoring the target
+alongside the agent that drives it risks stacking the deck. Mitigations — make it genuinely
+hostile rather than politely legacy-themed, keep its source out of the agent's context so
+discovery must actually perceive the UI, and disclose the concern in `REPORT.md`.
+
+A second, differently-branded variant of the same app — a stand-in for two tenants running one
+vendor product — is deferred to the stretch goals, per the brief's instruction to attempt those
+only on top of a solid core.
