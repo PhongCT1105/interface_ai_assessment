@@ -49,9 +49,19 @@ a deliberate seam, documented as such.
 | **3.6** Escalation | **Real mechanism.** Stuck detection; intervention request carrying context + screenshot; single explicit session owner; automation pauses; human drives the *same* live session; resume; human's actions captured | One operator, no routing, no queue, no auth | **Operator console is mocked** — explicitly permitted by the brief. A minimal local control surface, not a co-browsing product |
 | **3.7** Heterogeneity | The surface driver interface genuinely exists with one implementation behind it, so the seam is demonstrable rather than asserted | One surface implemented | Legacy-web and desktop drivers are **design only**, in `REPORT.md` §4. Multi-tenant reuse is design only |
 
-Tests, per "reasonably typed and tested where it counts": artifact schema validation, replay
-interpreter against a fake driver, error/outcome classification, redaction. Not broad e2e
-coverage — the evidence directory is the end-to-end proof.
+Tests, per "reasonably typed and tested where it counts":
+
+- Artifact schema validation round-trips
+- The replay interpreter against a **fake driver** — fast, no browser, and it covers the whole
+  result-contract matrix (success / each business outcome / each recoverable condition / hard
+  failure), which a real browser makes tedious to exercise
+- Error and outcome classification
+- Redaction at the persistence boundary
+- **A boundary test asserting the replay module cannot import a model client** — the highest
+  value per unit of effort, because it converts the submission's headline claim from an
+  assertion into a mechanically checked property
+
+Not broad e2e coverage — the evidence directory is the end-to-end proof.
 
 ## Deliverables scope
 
@@ -82,15 +92,19 @@ and rate-limit exposure, and it is not offline. Those are not incidental: requir
 the third-heaviest evaluation criterion, and a target that cannot produce runtime errors makes
 it undemonstrable.
 
-So the target is **a locally built, deliberately hostile back-office web app** — a mock member
-servicing console with seeded fake data and a fault-injection switch. Decision recorded as
-[decisions.md](decisions.md) 0006.
+That leaves two live options, both of which satisfy all seven:
 
-The honest counter-argument, which belongs in the write-up rather than buried here: building
-your own target risks stacking the deck — an app authored alongside the agent that drives it.
-The mitigations are to make it genuinely hostile rather than politely legacy-themed, to keep
-its source out of the agent's context so discovery has to actually perceive the UI, and to say
-all of this plainly in `REPORT.md`.
+| Option | For | Against |
+| --- | --- | --- |
+| **A. Purpose-built hostile app** — mock member-servicing console, legacy-shaped markup, seeded fake data, fault switch | Total control over how hostile the markup is; fault injection is native; a second tenant variant is trivial | Authoring the target alongside the agent that drives it looks like stacking the deck |
+| **B. ParaBank + fault-injection reverse proxy** — Parasoft's demo banking app (`docker pull parasoft/parabank`, JSP-era markup, real multi-step flow) with a small proxy in front returning 500s, injecting latency, dropping session cookies, and splicing in interstitials | The app is third-party code written before this project existed, which largely dissolves the stacked-deck objection; a second "tenant" comes nearly free via proxy-rewritten branding | Less control over markup hostility; one more moving part in the demo path; ParaBank's own admin page has **no** fault controls, so the proxy is load-bearing rather than optional |
+
+Currently leaning **B**. Recorded as [decisions.md](decisions.md) 0006 (amended and reopened).
+
+Whichever is chosen, the honest counter-argument belongs in the write-up rather than buried
+here — with option A especially, the mitigations are to make the app genuinely hostile rather
+than politely legacy-themed, to keep its source out of the agent's context so discovery has to
+actually perceive the UI, and to say all of this plainly in `REPORT.md`.
 
 ## Build order
 

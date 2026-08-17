@@ -80,8 +80,17 @@ resolve(target)      → find the control a Target descriptor refers to, or fail
   that is the one representation available across all three target surfaces: browsers
   expose it, and so do desktop OSes. Choosing DOM-shaped normalization would work today
   and paint us into a corner exactly where the brief warns about it.
+  *Precedent:* Playwright's `getByRole` / `getByLabel` / `getByText` resolve against the
+  accessibility tree and survive class renames and DOM re-nesting; Windows UI Automation
+  exposes the same tree shape uniformly across Win32, WPF and HTML, with an MSAA proxy for
+  legacy apps; UiPath's Citrix support installs a runtime bridge specifically so selectors
+  resolve against native element identity *instead of* OCR. Three independent surfaces, one
+  answer. See [research.md](research.md) §2–3.
 - Coordinates are captured but treated as **diagnostics, not targeting** — they are the one
   thing guaranteed not to survive a window resize or a differently-branded tenant.
+- On a browser surface, Playwright's `page.ariaSnapshot()` supplies this view directly, which
+  means the same primitive serves as the `Target` vocabulary *and* as the state assertion
+  mechanism. That is a build-cost reduction on the most load-bearing part of the system.
 
 ## Capability artifact (3.2)
 
@@ -131,7 +140,12 @@ Design commitments worth arguing for in the write-up:
   and edit it.
 - **`app.product` is identity separate from tenant instance.** This is the hook for
   cross-tenant reuse (3.7): one base artifact per vendor product, with per-tenant override
-  layers, rather than N recordings.
+  layers, rather than N recordings. An override layer may **replace targets** and **add
+  tenant-specific exceptional states**; it may *not* change the step sequence or the contract
+  — inputs, outputs and checkpoint stay fixed, because that is what makes it the *same*
+  capability rather than a different one wearing the same name.
+  *Precedent:* UiPath's Object Repository has done shared, reusable UI-element taxonomies
+  across projects for a decade — worth citing as prior art rather than presenting as novel.
 - **Human-readable and diff-reviewable.** The brief requires a human reviewer *and* a
   calling agent to understand it. That rules out an opaque binary trace and argues for
   plain declarative data with the LLM's transcript kept separately as evidence.
@@ -151,10 +165,33 @@ Two guards worth stating up front:
 - **The transcript is evidence, not the artifact.** Compilation prunes dead ends, retries,
   and backtracks; only the path that actually reached the checkpoint survives.
 
+Mechanics settled by the research pass ([research.md](research.md) §4):
+
+| Concern | Setting |
+| --- | --- |
+| Model | `claude-opus-5` — 1M context, adaptive thinking on by default |
+| Effort | Start `xhigh` (agentic work), then sweep down; `low`/`medium` are unusually strong on this model. `max_tokens` ≥ 64K at `xhigh` |
+| Action vocabulary | **Strict tool use** (`strict: true`, `additionalProperties: false`, `required`) — the API then guarantees the action JSON validates, which is exactly what a small closed alphabet wants |
+| Compile step | Structured outputs (`output_config.format` + JSON Schema) so the artifact is emitted validated rather than parsed hopefully |
+| Perception payload | Accessibility snapshot trimmed to the interactive subtree, plus a screenshot at 1080p (Anthropic's recommended performance/cost point for computer use) |
+| Prompt caching | Render order is `tools` → `system` → `messages`: keep the stable prefix cached (512-token minimum on Opus 5, reads ~0.1×) and put the volatile screenshot last. Material across a multi-step loop |
+
 ## Replay (3.3)
 
-A straight interpreter over the artifact: resolve target, apply action, assert `expect`,
-handle any matched `onCondition`, continue; return declared outputs on checkpoint pass.
+A straight interpreter over the artifact: check `precondition`, resolve target, apply action,
+assert `expect`, handle any matched `onCondition`, continue; return declared outputs on
+checkpoint pass.
+
+**Target resolution is an ordered chain**, each rung recorded at compile time with its
+rationale so a reviewer can see why a step targets what it targets:
+
+1. Role + accessible name — the durable primary
+2. Accessible name **within a named container** — disambiguates repeated controls in tables
+3. Visible text / label association
+4. Ordinal within a container — brittle, recorded explicitly as a last resort
+5. Structural path — **diagnostic only**. If resolution reaches this rung, replay reports
+   rather than acts; a step that can only be found structurally is a step whose recording has
+   gone stale, and clicking anyway is how automation does damage quietly.
 
 - **"No model in the loop" must be structural.** Replay lives in a module that cannot import
   a model client, enforced by build/lint boundary rather than by discipline — so the claim
@@ -170,6 +207,10 @@ handle any matched `onCondition`, continue; return declared outputs on checkpoin
     interstitial, retried transient load)
 - **Waits are conditions, never sleeps.** `wait-for` an assertion; a fixed sleep is both
   slower and less deterministic than the thing it replaces.
+- **The model-free claim gets a test, not a paragraph.** A boundary test asserts that the
+  replay module cannot import a model client. That turns the headline property from a promise
+  into something mechanically checked — the claim a reviewer is most likely to press on is
+  then the one with a test next to it.
 
 ## Escalation & handoff (3.6)
 
@@ -187,7 +228,30 @@ The operator console is explicitly mockable; the **control-transfer model** is n
 things to get right are: a single explicit owner at all times, the session surviving the
 transfer, and the human's actions landing in evidence alongside the automation's.
 
+Concretely, in cheapest-first order:
+
+- **Live session**: a headed browser kept alive independently of the run. Automation pauses;
+  the human drives the same window.
+- **Owner flag**: `automation | human | none`, checked at the policy chokepoint. One owner at
+  all times, no implicit concurrency.
+- **Capturing the human's actions**: an injected recorder script listening for click/input
+  events — the same technique Playwright's own codegen uses. Cheap fallback if that proves
+  fiddly: a before/after state diff plus an operator note.
+- **Operator surface**: a CLI prompt is adequate and honest. A tiny local page with
+  *Take control* / *Resume* buttons and the intervention payload rendered is nicer if time allows.
+
+*Precedent:* Cloudflare Browser Run and Browserbase Live View both productize exactly this
+sequence — session kept alive over CDP with a stable ID, script disconnects, human attaches to
+a live view and clears the blocker (login, MFA, CAPTCHA), human disconnects, script reconnects
+to the *same* session — and both enforce **one controlling client at a time**. That is
+independent confirmation of the single-owner model, not a coincidence.
+
 ## Safety (3.4)
+
+The framing worth using, borrowed from the industry analysis in [research.md](research.md) §1:
+**every connector is an access grant.** A capability is not a convenience script — it is
+delegated authority over a bank system, and the allowlist is what bounds that grant. That is a
+better argument than a generic safety paragraph, and it is the reviewers' own industry's phrasing.
 
 - Allowlist of permitted origins/routes and permitted action types, checked at the policy
   chokepoint for **both** discovery and replay.
@@ -211,12 +275,13 @@ To be closed before implementation and recorded in [decisions.md](decisions.md).
 
 | Decision | Options | Status |
 | --- | --- | --- |
-| Language / runtime | TypeScript, Python | **Deferred** pending research pass (0005) |
-| Surface driver (web impl) | Playwright, CDP, OS-level | Deferred with the above; leaning Playwright for its accessibility-tree access |
-| Perception | Accessibility tree, screenshot, hybrid | Deferred; leaning hybrid — a11y tree for targeting, screenshot for judgment and evidence |
-| Artifact serialization | JSON, YAML, generated code | Deferred; leaning JSON with a schema, YAML only if review ergonomics win |
-| Proxy target app | Public demo site, locally built hostile app | **Decided:** locally built hostile app (0006) |
-| Model | Claude (consult `claude-api` guidance before wiring) | Deferred with the stack |
+| Perception | Accessibility tree, screenshot, hybrid | **Decided:** hybrid — a11y tree for targeting and assertions, screenshot for judgment and evidence (corroborated, 0008) |
+| Surface driver (web impl) | Playwright, CDP, OS-level | **Effectively decided:** Playwright, for accessibility-tree access and `ariaSnapshot()` |
+| Model | Claude | **Decided:** `claude-opus-5` |
+| Language / runtime | TypeScript, Python | **Open** (0005) — the research did not force it; the tiebreak is whichever has the more idiomatic Playwright binding for you |
+| Proxy target app | Locally built hostile app, ParaBank + fault proxy | **Reopened** (0006 amended) — leaning ParaBank behind a fault-injection proxy |
+| Artifact serialization | JSON, YAML, generated code | Open; leaning JSON with a schema, YAML only if review ergonomics win |
+| Set-of-Marks overlay in discovery | Yes, no | Open — better grounding versus token cost and build time |
 | Process architecture | Single process + CLI, services | Leaning single process; the brief rewards justified simplicity |
 
 Scope, depth budget, and build order are in [scope.md](scope.md). The stack deferral is safe
