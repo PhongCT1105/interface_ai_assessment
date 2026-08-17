@@ -21,8 +21,9 @@ Design phase. Requirements captured, architecture proposed, no implementation ye
 | Requirements of record | Complete — [docs/assignment-brief.md](docs/assignment-brief.md) |
 | Architecture | Proposed — [docs/architecture.md](docs/architecture.md) |
 | Scope, depth budget, build order | Defined — [docs/scope.md](docs/scope.md) |
-| Target application | Decided — locally built hostile back-office app |
-| Stack / computer-use technology | Deferred pending a research pass |
+| Field + domain research | Complete — [docs/research.md](docs/research.md) |
+| Target application | Reopened — hostile app, or ParaBank behind a fault proxy |
+| Stack / computer-use technology | Open (perception strategy settled) |
 | Agent loop (3.1) | Not started |
 | Capability artifact (3.2) | Not started |
 | Deterministic replay (3.3) | Not started |
@@ -63,6 +64,7 @@ evidence/               example artifact + discovery and replay run logs (requir
 docs/
   assignment-brief.md   requirements of record + traceability
   scope.md              depth budget, cut list, build order
+  research.md           prior art, domain research, direction check
   architecture.md       proposed design
   decisions.md          decision log — every choice and its justification
 ```

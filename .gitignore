@@ -3,6 +3,10 @@
 # docs/assignment-brief.md as our own restatement.
 docs/assignment-brief.pdf
 
+# Candidate-side scoring and differentiation notes — working document, not part
+# of the submission (docs/decisions.md 0009).
+docs/strategy.md
+
 # Secrets
 .env
 .env.*

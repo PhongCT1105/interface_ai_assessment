@@ -106,6 +106,19 @@ The perception strategy is the one to settle most carefully, because the brief s
 toward an approach that still works with no clean DOM, and that choice determines what a
 `Target` in the artifact schema can even refer to.
 
+**Amended 2026-08-17 — research pass complete; the stack choice remains open on purpose.** The
+research ([research.md](research.md)) settled the *perception* question and left the *language*
+question genuinely open, which is itself a useful result: the design survives either. Two
+findings do bear on it:
+
+- Playwright's accessibility-snapshot API (`page.ariaSnapshot()`) can serve as both the `Target`
+  vocabulary and the per-step assertion mechanism, so whichever language has the most idiomatic
+  Playwright binding starts with less to build.
+- Accessibility-tree-shaped normalization is now corroborated rather than a leaning — Playwright's
+  role/label/text locators resolve against the a11y tree, Windows UI Automation exposes the same
+  shape for desktop, and UiPath bridges to native element identity rather than falling back to
+  OCR. Coordinates-as-diagnostics is corroborated by the same sources.
+
 ---
 
 ## 0006 — Proxy target: a locally built, deliberately hostile back-office app
@@ -142,3 +155,89 @@ discovery must actually perceive the UI, and disclose the concern in `REPORT.md`
 A second, differently-branded variant of the same app — a stand-in for two tenants running one
 vendor product — is deferred to the stretch goals, per the brief's instruction to attempt those
 only on top of a solid core.
+
+**Amended 2026-08-17 (status: reopened).** The research pass surfaced a third option that was not
+considered when this was decided: ParaBank (Parasoft's demo banking app —
+`docker pull parasoft/parabank`, JSP-era markup, a real multi-step banking flow) run **behind a
+small fault-injection reverse proxy**. ParaBank alone fails this decision's test — its admin page
+exposes data-access mode, endpoints and database init/clean but **no** delay, error, or downtime
+controls — yet a proxy supplies exactly the missing piece: 500s, injected latency, dropped session
+cookies, spliced-in interstitials, and a second "tenant" via rewritten branding.
+
+The reason to take it seriously is the known weakness recorded above: the app under automation
+would be third-party code, written by someone else for other purposes before this project existed,
+which largely dissolves the stacked-deck objection. The cost is less control over how hostile the
+markup is, plus one more moving part in the demo path. Deferred to the user, since it changes the
+build's first phase. Details in [research.md](research.md) §5.
+
+---
+
+## 0007 — Steps carry a precondition as well as a post-step assertion
+
+**Date:** 2026-08-17
+**Status:** Accepted
+
+Each artifact step verifies state on both sides of its action: a `precondition` checked before
+acting and an `expect` checked after. The original design had only the post-step assertion.
+
+The change came from the research pass. Browserbase's Stagehand validates a cached action *before*
+executing it, comparing a page fingerprint against the one recorded at cache time and refusing to
+act unless it clears a safety threshold — their stated principle is that "a wrong cached click is
+worse than a slow click." PreAct reaches the same conclusion academically, with verification gates
+that confirm a cached workflow still applies before reuse and graceful degradation on mismatch.
+
+Both directions are load-bearing for different failures. Without the post-step assertion, replay
+drifts silently and only notices at the final checkpoint, by which point the debuggable detail is
+gone. Without the precondition, replay acts on a screen it was never recorded against — the worse
+failure inside a bank, and the one a post-step check catches too late.
+
+Rejected: post-step assertions only (the original design — cheaper, but catches the dangerous
+failure after the damage). Also rejected: a single global precondition per capability, which would
+detect a wrong entry point but not a wrong intermediate screen.
+
+---
+
+## 0008 — Research findings that corroborate the existing design
+
+**Date:** 2026-08-17
+**Status:** Accepted (no change required)
+
+Recorded so the design's provenance is auditable, and so the write-up can cite precedent rather
+than implying novelty. Full sources in [research.md](research.md) §3 and §5.
+
+| Design position | Independent corroboration |
+| --- | --- |
+| Accessibility-tree-shaped normalization; coordinates as diagnostics | Playwright locators resolve against the a11y tree; Windows UI Automation exposes the same shape across Win32/WPF/HTML; UiPath bridges to native element identity rather than OCR |
+| Capability as a typed contract with declared inputs/outputs, parameterized at compile time | browser-use/workflow-use auto-extracts form variables and exposes workflows as callable tools; PreAct's parameterized workflows carry input/output mappings as part of induction |
+| Replay degrades and reports rather than guessing | PreAct's graceful degradation; Stagehand's conservative validation |
+| Single explicit session owner across handoff | Cloudflare Browser Run and Browserbase Live View both keep one controlling client at a time, with the human attaching to the same live session and the script reconnecting after |
+| Base artifact + per-tenant override layer | UiPath's Object Repository — a shared, reusable UI taxonomy across projects — is a decade-old precedent |
+| Compiling a capability from a successful LLM trajectory | Agent Workflow Memory (ICML 2025) induces reusable workflows from self-generated successful trajectories |
+
+One position has **no** precedent in the tools surveyed: a policy chokepoint sitting beneath both
+the discovery and replay paths. None of workflow-use, Stagehand, or Skyvern has a guardrail layer
+at all — reasonably, since none of them runs inside a regulated institution. Treating that as a
+differentiator rather than an oversight, and building it properly.
+
+Also worth recording: the field is not organized around drift resilience either. The brief says the
+UIs are stable and the interesting failures are runtime conditions, and the tools that ship
+self-healing do it as a convenience, not as the core value. The error taxonomy is the right place
+to spend effort.
+
+---
+
+## 0009 — Scoring and differentiation notes stay out of the public repo
+
+**Date:** 2026-08-17
+**Status:** Accepted
+
+`docs/strategy.md` — candidate-side reasoning about the evaluation criteria, what other
+submissions are likely to get wrong, and where to be visibly better — is gitignored, for the same
+reason as the brief PDF (0003). It is useful working material and it is not part of the
+deliverable; a reviewer opening the repo should find engineering, not an analysis of how to score
+well against them.
+
+Substance derived from it belongs in `REPORT.md` as design argument, stated on its own merits.
+Technical and domain research stays committed in [research.md](research.md), where it is
+legitimately part of the work: surveying the field before building is engineering, and citing it
+makes the novel parts legible as novel.

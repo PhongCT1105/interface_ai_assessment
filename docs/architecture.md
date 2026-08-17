@@ -103,7 +103,8 @@ step
   action        one of the closed vocabulary
   target        { primary: Target, fallbacks: [Target] }
   value         literal | { param: inputName }       ← parameterization lives here
-  expect        assertion                            ← per-step checkpoint
+  precondition  assertion                            ← verified BEFORE acting
+  expect        assertion                            ← verified AFTER acting
   onCondition   [ { when: signal, then: outcome|recover } ]  ← known exceptional states
   risk          safe | confirm | blocked
 
@@ -113,10 +114,14 @@ Target         role + accessible name (primary), text, ordinal-within-container,
 
 Design commitments worth arguing for in the write-up:
 
-- **Every step carries its own `expect`.** Without it, replay drifts silently — it clicks
-  into the void and only notices at the final checkpoint, by which point the debuggable
-  information is gone. This is what makes failures report *which step, expected what,
-  observed what* (3.3).
+- **Every step is verified on both sides — `precondition` before, `expect` after.** Without the
+  post-step assertion, replay drifts silently: it clicks into the void and only notices at the
+  final checkpoint, by which point the debuggable information is gone. Without the pre-step
+  check, it acts on a screen it was never recorded against — which inside a bank is the worse
+  of the two failures. Together they are what makes a failure report *which step, expected
+  what, observed what* (3.3). Browserbase reached the same conclusion for cached Stagehand
+  actions, validating a page fingerprint against a safety threshold before executing; see
+  [research.md](research.md) §3.
 - **Parameterization is explicit, not inferred at replay time.** A value in a step is either
   a literal or a named reference to a declared input. The recorder decides which, at
   compile time, using knowledge of what came from the goal versus what came from the page.
