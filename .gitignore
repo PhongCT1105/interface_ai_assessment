@@ -1,3 +1,8 @@
+# The brief itself — interface.ai's evaluation instrument, kept out of the public
+# repo deliberately (docs/decisions.md 0003). Requirements live in
+# docs/assignment-brief.md as our own restatement.
+docs/assignment-brief.pdf
+
 # Secrets
 .env
 .env.*
